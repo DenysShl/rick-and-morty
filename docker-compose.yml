@@ -5,13 +5,14 @@ services:
     image: postgres
     env_file: ./.env
     ports:
-      - "5433:5432"
-    entrypoint:
+      - $POSTGRES_LOCAL_PORT:$POSTGRES_DOCKER_PORT
+#      - "5434:5432"
+    environment:
       - POSTGRES_USER=$DB_USER
       - POSTGRES_PASSWORD=$DB_PASSWORD
       - POSTGRES_DB=$DB_NAME
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -q -d $DB_NAME -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -22,12 +23,13 @@ services:
     build: .
     env_file: ./.env
     ports:
-      - "8088:8080"
-      - "5005:5005"
+      - $SPRING_LOCAL_PORT:$SPRING_DOCKER_PORT
+#      - "8088:8080"
+      - $DEBUG_PORT:$DEBUG_PORT
+#      - "5005:5005"
     environment:
-      WAIT_HOSTS: postgres:5432
       SPRING_APPLOCATION_JSON: '{
-        "spring.datasource.url" : "jdbc:postgresql://postgres:$POSTGRES_DOCKER_PORT/$DB_NAME"
+        "spring.datasource.url" : "jdbc:postgresql://localhost:$POSTGRES_DOCKER_PORT/$DB_NAME"
         "spring.datasource.username" : "$DB_USER",
         "spring.datasource.password" : "$DB_PASSWORD"
       }'
