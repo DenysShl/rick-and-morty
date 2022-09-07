@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 @Log4j2
 @Service
 public class MovieCharacterServiceImpl implements MovieCharacterService {
+    private static final int START_INDEX_FOR_RANGE_RANDOM = 1;
     private final HttpClient httpClient;
     private final MovieCharacterRepository repository;
     private final MovieCharacterMapper mapper;
@@ -33,7 +34,7 @@ public class MovieCharacterServiceImpl implements MovieCharacterService {
     }
 
     @PostConstruct
-    @Scheduled(cron = "0 8 * * *")
+    @Scheduled(cron = "0 0 */8 * * ?")
     @Override
     public void syncExternalCharacters() {
         log.info("syncExternalCharacters method was invoked at {}", LocalDateTime.now());
@@ -43,9 +44,11 @@ public class MovieCharacterServiceImpl implements MovieCharacterService {
         saveDtosToDB(apiResponseDto);
 
         while (apiResponseDto.getInfo().getNext() != null) {
-            httpClient.get(apiResponseDto.getInfo().getNext(), ApiResponseDto.class);
+            apiResponseDto = httpClient.get(apiResponseDto.getInfo().getNext(),
+                    ApiResponseDto.class);
             saveDtosToDB(apiResponseDto);
         }
+        log.info("syncExternalCharacters method was ended at {}", LocalDateTime.now());
     }
 
     @Override
@@ -56,21 +59,18 @@ public class MovieCharacterServiceImpl implements MovieCharacterService {
     @Override
     public MovieCharacter getRandomCharacter() {
         long count = repository.count();
-        long randomId = (long) (Math.random() * count);
+        long randomId = START_INDEX_FOR_RANGE_RANDOM + (long) (Math.random() * count);
         return repository.getById(randomId);
     }
 
     private void saveDtosToDB(ApiResponseDto apiResponseDto) {
         Map<Long, ApiCharacterDto> externalDto = Arrays.stream(apiResponseDto.getResults())
                 .collect(Collectors.toMap(ApiCharacterDto::getId, Function.identity()));
-
         Set<Long> externalIds = externalDto.keySet();
-
         List<MovieCharacter> existingCharacters = repository.findAllByExternalIdIn(externalIds);
 
         Map<Long, MovieCharacter> existingCharactersIds = existingCharacters.stream()
                 .collect(Collectors.toMap(MovieCharacter::getExternalId, Function.identity()));
-
         Set<Long> existingIds = existingCharactersIds.keySet();
 
         externalIds.removeAll(existingIds);
